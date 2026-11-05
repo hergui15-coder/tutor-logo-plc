@@ -100,8 +100,10 @@ Para cualquier consulta sobre el estudio puede escribir a {DOCENTE_CORREO}.
 - **Su participación es voluntaria y no afecta su calificación.** Puede dejar de
   usar el asistente en cualquier momento sin dar explicaciones y sin
   consecuencia académica alguna.
-- Al terminar la recolección de datos, el asistente se pondrá también a
-  disposición del grupo que no lo utilizó durante el estudio.
+- Todos los estudiantes del paralelo 4A de Automatización Industrial usan el
+  mismo asistente, en las mismas condiciones. Al terminar el estudio, el
+  asistente seguirá disponible para los estudiantes de la carrera de
+  Electromecánica.
 
 Si tiene dudas, consúltelas con el docente antes de continuar.
 """
@@ -398,8 +400,89 @@ if MODO not in ("guiado", "directo"):
 # INTERFAZ
 # ---------------------------------------------------------------------------
 
-st.title("Tutor Virtual: PLC Siemens LOGO!")
-st.caption(f"{INSTITUCION}  ·  Elaborado por {DOCENTE}")
+IMAGEN_ENCABEZADO = RAIZ / "recursos" / "encabezado_istcc.jpg"
+
+ESTILOS = """
+<style>
+:root { --azul:#1E2A6E; --azul2:#2B4BA8; --verde:#3FD12A; --naranja:#F59E0B; --cian:#06B6D4; }
+.block-container { padding-top: 1.2rem; }
+.hero { background: linear-gradient(120deg, #1E2A6E 0%, #2B4BA8 55%, #0EA5A4 100%);
+        border-radius: 18px; padding: 26px 28px; color: #fff; display:flex;
+        align-items:center; gap: 22px; flex-wrap: wrap; margin: 6px 0 18px 0;
+        box-shadow: 0 8px 24px rgba(30,42,110,.25); }
+.hero-texto { flex: 1 1 320px; min-width: 260px; }
+.hero h1 { color:#fff !important; font-size: 2.1rem; line-height:1.15; margin:0 0 6px 0; padding:0; }
+.hero .chip { display:inline-block; background: rgba(255,255,255,.16); border:1px solid rgba(255,255,255,.35);
+        padding: 3px 12px; border-radius: 999px; font-size:.8rem; margin-bottom:10px; letter-spacing:.3px; }
+.hero p { color: #E6ECFF; font-size: 1.02rem; margin: 6px 0 0 0; }
+.hero-img { flex: 0 1 300px; max-width: 320px; width:100%; }
+.tarjetas { display:grid; grid-template-columns: repeat(auto-fit, minmax(200px,1fr)); gap: 14px; margin: 4px 0 18px 0; }
+.tarjeta { border-radius: 14px; padding: 16px 16px 14px 16px; color:#1f2937; border:1px solid rgba(0,0,0,.05); }
+.tarjeta .ico { font-size: 1.7rem; }
+.tarjeta b { display:block; font-size: 1.02rem; margin: 4px 0 4px 0; }
+.tarjeta span { font-size: .9rem; color:#374151; }
+.t1 { background:#E8FBE4; border-left: 6px solid #3FD12A; }
+.t2 { background:#FFF4DB; border-left: 6px solid #F59E0B; }
+.t3 { background:#E0F2FE; border-left: 6px solid #0EA5E9; }
+.t4 { background:#F3E8FF; border-left: 6px solid #8B5CF6; }
+.pasos { display:flex; gap:10px; flex-wrap:wrap; margin: 0 0 16px 0; }
+.paso { flex: 1 1 180px; background:#fff; border:2px dashed #CBD5E1; border-radius: 12px; padding: 10px 12px; font-size:.92rem; color:#1f2937; }
+.paso .n { display:inline-flex; width:26px; height:26px; border-radius:50%; background:#1E2A6E; color:#fff;
+        align-items:center; justify-content:center; font-weight:700; margin-right:6px; }
+.mini { background: linear-gradient(90deg,#1E2A6E,#2B4BA8); color:#fff; border-radius: 12px;
+        padding: 10px 16px; margin-bottom: 10px; font-weight:600; }
+.mini small { font-weight:400; color:#DCE4FF; }
+@media (max-width: 640px) { .hero { padding: 18px; } .hero h1 { font-size: 1.6rem; } }
+</style>
+"""
+
+# Ilustracion propia: modulo logico generico con un circuito de marcha-paro.
+ILUSTRACION_SVG = """
+<svg class="hero-img" viewBox="0 0 320 210" xmlns="http://www.w3.org/2000/svg" role="img"
+     aria-label="Ilustración de un módulo lógico programable con entradas, salidas y un circuito de marcha y paro">
+  <rect x="8" y="14" width="304" height="10" rx="3" fill="#94A3B8"/>
+  <rect x="40" y="30" width="170" height="150" rx="12" fill="#F8FAFC"/>
+  <rect x="40" y="30" width="170" height="28" rx="12" fill="#CBD5E1"/>
+  <rect x="40" y="46" width="170" height="12" fill="#CBD5E1"/>
+  <g fill="#1E2A6E">
+    <circle cx="58" cy="44" r="4"/><circle cx="76" cy="44" r="4"/><circle cx="94" cy="44" r="4"/><circle cx="112" cy="44" r="4"/>
+    <circle cx="130" cy="44" r="4"/><circle cx="148" cy="44" r="4"/><circle cx="166" cy="44" r="4"/><circle cx="184" cy="44" r="4"/>
+  </g>
+  <text x="125" y="72" font-family="Arial, sans-serif" font-size="9" fill="#475569" text-anchor="middle">I1  I2  I3  I4  I5  I6  I7  I8</text>
+  <rect x="56" y="80" width="98" height="58" rx="6" fill="#0F172A"/>
+  <rect x="62" y="86" width="86" height="46" rx="3" fill="#22D3EE" opacity=".9"/>
+  <text x="105" y="104" font-family="Courier New, monospace" font-size="11" fill="#0F172A" text-anchor="middle" font-weight="bold">Q1 = ON</text>
+  <text x="105" y="121" font-family="Courier New, monospace" font-size="10" fill="#0F172A" text-anchor="middle">T001 05.0s</text>
+  <g fill="#E2E8F0" stroke="#94A3B8">
+    <rect x="164" y="84" width="16" height="12" rx="3"/><rect x="184" y="84" width="16" height="12" rx="3"/>
+    <rect x="164" y="102" width="16" height="12" rx="3"/><rect x="184" y="102" width="16" height="12" rx="3"/>
+  </g>
+  <circle cx="172" cy="128" r="5" fill="#3FD12A"/><circle cx="192" cy="128" r="5" fill="#F59E0B"/>
+  <rect x="40" y="148" width="170" height="32" fill="#CBD5E1"/>
+  <rect x="40" y="168" width="170" height="12" rx="12" fill="#CBD5E1"/>
+  <g fill="#1E2A6E"><circle cx="66" cy="164" r="4"/><circle cx="102" cy="164" r="4"/><circle cx="138" cy="164" r="4"/><circle cx="174" cy="164" r="4"/></g>
+  <text x="122" y="158" font-family="Arial, sans-serif" font-size="9" fill="#475569" text-anchor="middle">Q1       Q2       Q3       Q4</text>
+  <path d="M66 180 V196 H250 V150" stroke="#3FD12A" stroke-width="3" fill="none"/>
+  <circle cx="250" cy="136" r="14" fill="#3FD12A"/>
+  <circle cx="250" cy="136" r="22" fill="#3FD12A" opacity=".25"/>
+  <text x="250" y="140" font-family="Arial, sans-serif" font-size="11" fill="#0F172A" text-anchor="middle" font-weight="bold">M1</text>
+  <g transform="translate(232,46)">
+    <rect width="64" height="44" rx="8" fill="#FFFFFF" opacity=".95"/>
+    <circle cx="20" cy="22" r="11" fill="#16A34A"/><text x="20" y="26" font-size="9" fill="#fff" text-anchor="middle" font-family="Arial">I</text>
+    <circle cx="45" cy="22" r="11" fill="#DC2626"/><text x="45" y="26" font-size="9" fill="#fff" text-anchor="middle" font-family="Arial">O</text>
+  </g>
+  <path d="M232 68 H212" stroke="#F8FAFC" stroke-width="2" stroke-dasharray="4 3"/>
+</svg>
+"""
+
+
+def mostrar_encabezado_institucional() -> None:
+    if IMAGEN_ENCABEZADO.exists():
+        st.image(str(IMAGEN_ENCABEZADO), use_container_width=True)
+
+
+st.markdown(ESTILOS, unsafe_allow_html=True)
+mostrar_encabezado_institucional()
 
 if not API_KEY:
     st.error(
@@ -505,7 +588,30 @@ def codigo_valido(codigo: str) -> bool:
 
 # --- Paso 1: identificacion y consentimiento --------------------------------
 if not st.session_state.identificado:
-    st.markdown(TEXTO_CONSENTIMIENTO)
+    st.markdown(f"""
+<div class="hero">
+  <div class="hero-texto">
+    <span class="chip">⚡ {ASIGNATURA} · Paralelo {PARALELO_ESTUDIO}</span>
+    <h1>¡Bienvenido a tu Tutor Virtual LOGO!</h1>
+    <p>Aprende a programar el módulo lógico LOGO! paso a paso: el tutor no te da la
+    respuesta de inmediato, te hace pensar como un técnico en automatización.</p>
+  </div>
+  {ILUSTRACION_SVG}
+</div>
+<div class="tarjetas">
+  <div class="tarjeta t1"><div class="ico">🧠</div><b>Te guía, no te copia</b><span>Pistas y preguntas hasta que tú mismo armes el programa.</span></div>
+  <div class="tarjeta t2"><div class="ico">⚠️</div><b>Seguridad primero</b><span>Te recuerda las reglas de seguridad eléctrica antes de energizar.</span></div>
+  <div class="tarjeta t3"><div class="ico">🔧</div><b>Prácticas guiadas</b><span>Marcha-paro, temporizadores, contadores, estrella-triángulo y más.</span></div>
+  <div class="tarjeta t4"><div class="ico">📱</div><b>Desde cualquier lugar</b><span>Funciona en el celular y en la computadora, en clase o en casa.</span></div>
+</div>
+<div class="pasos">
+  <div class="paso"><span class="n">1</span>Escribe tu <b>código</b> en la barra lateral (ej. 4A-07). En el celular, ábrela con <b>&gt;</b> arriba a la izquierda.</div>
+  <div class="paso"><span class="n">2</span>Lee el <b>consentimiento</b> y marca la casilla.</div>
+  <div class="paso"><span class="n">3</span>Pulsa <b>Comenzar la tutoría</b> y escribe tu primera duda.</div>
+</div>
+""", unsafe_allow_html=True)
+    with st.container(border=True):
+        st.markdown(TEXTO_CONSENTIMIENTO)
     acepto = st.checkbox(
         "He leído lo anterior, entiendo que mi participación es voluntaria y "
         "acepto que se registren mis consultas de forma anónima."
@@ -547,6 +653,12 @@ minutos = round((ahora() - st.session_state.inicio_sesion).total_seconds() / 60,
 st.caption(
     f"Sesión `{st.session_state.id_sesion}` · tiempo activo: **{minutos} min** · "
     f"consultas: **{len(st.session_state.registro_sesion)}**"
+)
+
+st.markdown(
+    f'<div class="mini">🤖 Tutor Virtual LOGO! &nbsp;<small>· {ASIGNATURA} · '
+    f'Paralelo {st.session_state.paralelo} · Código {st.session_state.codigo}</small></div>',
+    unsafe_allow_html=True,
 )
 
 if not st.session_state.mensajes:
