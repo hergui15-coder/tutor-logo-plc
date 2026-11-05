@@ -20,6 +20,7 @@ import re
 import time
 import uuid
 from datetime import datetime
+from zoneinfo import ZoneInfo
 from pathlib import Path
 
 import streamlit as st
@@ -42,6 +43,24 @@ CSV_CONSENTIMIENTOS = DIR_REGISTRO / "consentimientos.csv"
 # tipo 'gemini-flash-latest': cambiaria de modelo a mitad del estudio y el
 # articulo dejaria de ser replicable.
 MODELO_POR_DEFECTO = "gemini-3.6-flash"
+
+# Hora local de Ecuador (el servidor de Streamlit Cloud trabaja en UTC).
+ZONA_HORARIA = ZoneInfo("America/Guayaquil")
+
+
+def ahora() -> datetime:
+    """Fecha y hora actuales de Ecuador, sin zona (para restar y formatear)."""
+    return datetime.now(ZONA_HORARIA).replace(tzinfo=None)
+
+
+# Grupo de aplicacion del estudio y codigos de participante.
+#   Estudiantes: 4A-01 ... 4A-17 (Automatizacion Industrial, TSU 4A)
+#   Pruebas del docente/expertos: PRUEBA-01 ... PRUEBA-99 (se excluyen del analisis)
+# La lista exacta puede fijarse en Secrets con CODIGOS_VALIDOS = "4A-01,4A-02,..."
+ASIGNATURA = "Automatización Industrial"
+PARALELO_ESTUDIO = "4A"
+TOTAL_ESTUDIANTES = 17
+PATRON_PRUEBA = r"PRUEBA-\d{2}"
 
 # Datos del docente responsable. Aparecen en la interfaz y en el consentimiento
 # informado: el participante debe saber a quien dirigirse. Los estudiantes son
@@ -344,7 +363,7 @@ def responder(clave: str, modelo: str, instruccion: str, historial: list[dict],
 
 for clave_estado, valor in {
     "id_sesion": uuid.uuid4().hex[:12],
-    "inicio_sesion": datetime.now(),
+    "inicio_sesion": ahora(),
     "mensajes": [],
     "registro_sesion": [],
     "consentimiento": False,
@@ -408,16 +427,10 @@ with st.sidebar:
         st.text_input(
             "Código de estudiante",
             key="entrada_codigo",
-            placeholder="Ej. EM-2026-014",
+            placeholder="Ej. 4A-07",
             help="Es el código que le entregó el docente. No escriba su nombre.",
         )
-        col1, col2 = st.columns(2)
-        with col1:
-            st.selectbox("Curso", ["Seleccione...", "3ro", "4to", "5to", "6to"],
-                         key="entrada_curso")
-        with col2:
-            st.selectbox("Paralelo", ["Seleccione...", "A", "B", "C"],
-                         key="entrada_paralelo")
+        st.caption(f"{ASIGNATURA} · Paralelo {PARALELO_ESTUDIO}")
 
     st.divider()
     st.header("Evidencia")
@@ -430,7 +443,7 @@ with st.sidebar:
         f"Curso: {st.session_state.curso} | Paralelo: {st.session_state.paralelo}\n"
         f"Sesion: {st.session_state.id_sesion}\n"
         f"Modelo: {MODELO} | Modo: {MODO}\n"
-        f"Fecha: {datetime.now().strftime('%Y-%m-%d %H:%M:%S')}\n"
+        f"Fecha: {ahora().strftime('%Y-%m-%d %H:%M:%S')}\n"
         f"Interacciones en esta sesión: {len(st.session_state.registro_sesion)}\n"
         + "=" * 60 + "\n\n"
     )
@@ -445,7 +458,7 @@ with st.sidebar:
         data=cabecera + cuerpo,
         file_name=(
             f"tutoria_{st.session_state.codigo or 'sin_codigo'}_"
-            f"{datetime.now().strftime('%Y%m%d_%H%M')}.txt"
+            f"{ahora().strftime('%Y%m%d_%H%M')}.txt"
         ),
         mime="text/plain",
         use_container_width=True,
@@ -458,7 +471,7 @@ with st.sidebar:
                 False if k in ("identificado", "consentimiento") else ""
             )
         st.session_state.id_sesion = uuid.uuid4().hex[:12]
-        st.session_state.inicio_sesion = datetime.now()
+        st.session_state.inicio_sesion = ahora()
         st.rerun()
 
     st.divider()
@@ -480,6 +493,16 @@ with st.sidebar:
     if st.session_state.get("error_supabase"):
         st.caption(f"Aviso Supabase: {st.session_state['error_supabase'][:120]}")
 
+def codigo_valido(codigo: str) -> bool:
+    """Acepta solo los codigos del grupo de estudio (lista en Secrets o 4A-01..4A-17)."""
+    lista = str(leer_secreto("CODIGOS_VALIDOS", "") or "")
+    if lista.strip():
+        validos = {c.strip().upper() for c in lista.split(",") if c.strip()}
+        return codigo in validos
+    m = re.fullmatch(rf"{PARALELO_ESTUDIO}-(\d{{2}})", codigo)
+    return bool(m) and 1 <= int(m.group(1)) <= TOTAL_ESTUDIANTES
+
+
 # --- Paso 1: identificacion y consentimiento --------------------------------
 if not st.session_state.identificado:
     st.markdown(TEXTO_CONSENTIMIENTO)
@@ -490,26 +513,26 @@ if not st.session_state.identificado:
 
     if st.button("Comenzar la tutoría", type="primary"):
         codigo = st.session_state.get("entrada_codigo", "").strip().upper()
-        curso = st.session_state.get("entrada_curso", "Seleccione...")
-        paralelo = st.session_state.get("entrada_paralelo", "Seleccione...")
+        codigo = codigo.replace(" ", "")
+        es_prueba = bool(re.fullmatch(PATRON_PRUEBA, codigo))
+        curso = ASIGNATURA
+        paralelo = "PRUEBA" if es_prueba else PARALELO_ESTUDIO
 
-        if not re.fullmatch(r"[A-Z0-9][A-Z0-9._\-]{2,19}", codigo):
+        if not (es_prueba or codigo_valido(codigo)):
             st.warning(
-                "Escriba el código que le asignó el docente (entre 3 y 20 "
-                "caracteres, solo letras, números, punto o guion). No use su nombre."
+                "Ese código no está registrado. Escriba exactamente el código que "
+                "le entregó el docente (por ejemplo 4A-07). No use su nombre."
             )
-        elif curso == "Seleccione..." or paralelo == "Seleccione...":
-            st.warning("Seleccione su curso y paralelo en la barra lateral.")
         elif not acepto:
             st.warning("Debe aceptar el consentimiento informado para continuar.")
         else:
             st.session_state.update(
                 codigo=codigo, curso=curso, paralelo=paralelo,
                 identificado=True, consentimiento=True,
-                inicio_sesion=datetime.now(),
+                inicio_sesion=ahora(),
             )
             registrar("consentimiento", {
-                "fecha_hora": datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
+                "fecha_hora": ahora().strftime("%Y-%m-%d %H:%M:%S"),
                 "codigo_estudiante": codigo,
                 "curso": curso,
                 "paralelo": paralelo,
@@ -520,7 +543,7 @@ if not st.session_state.identificado:
     st.stop()
 
 # --- Paso 2: chat ------------------------------------------------------------
-minutos = round((datetime.now() - st.session_state.inicio_sesion).total_seconds() / 60, 1)
+minutos = round((ahora() - st.session_state.inicio_sesion).total_seconds() / 60, 1)
 st.caption(
     f"Sesión `{st.session_state.id_sesion}` · tiempo activo: **{minutos} min** · "
     f"consultas: **{len(st.session_state.registro_sesion)}**"
@@ -571,16 +594,16 @@ if pregunta := st.chat_input("Escriba su duda sobre LOGO!..."):
             st.markdown(texto)
             st.session_state.mensajes.append({"role": "assistant", "content": texto})
 
-            ahora = datetime.now()
+            momento = ahora()
             fila = {
-                "fecha_hora": ahora.strftime("%Y-%m-%d %H:%M:%S"),
+                "fecha_hora": momento.strftime("%Y-%m-%d %H:%M:%S"),
                 "codigo_estudiante": st.session_state.codigo,
                 "curso": st.session_state.curso,
                 "paralelo": st.session_state.paralelo,
                 "id_sesion": st.session_state.id_sesion,
                 "n_interaccion": len(st.session_state.registro_sesion) + 1,
                 "minutos_sesion": round(
-                    (ahora - st.session_state.inicio_sesion).total_seconds() / 60, 1
+                    (momento - st.session_state.inicio_sesion).total_seconds() / 60, 1
                 ),
                 "modelo": MODELO,
                 "modo": MODO,
