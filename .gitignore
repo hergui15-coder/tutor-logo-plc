@@ -1,0 +1,12 @@
+# NUNCA subir la clave de la API ni las credenciales de la hoja de calculo
+.streamlit/secrets.toml
+*.json
+
+# Datos del estudio (contienen conversaciones de estudiantes)
+registro/
+
+# Restos de Python
+__pycache__/
+*.pyc
+.venv/
+venv/
