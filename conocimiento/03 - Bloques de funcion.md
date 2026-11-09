@@ -88,10 +88,23 @@ Los temporizadores semanal, anual y astronómico requieren un modelo con reloj i
 | Valor medio | Promedia la señal en una ventana de tiempo |
 
 **Escalado — el punto donde más se equivocan:** el LOGO! representa internamente la
-entrada analógica en el rango 0–1000. Para convertir a unidades de ingeniería se usa el
-amplificador analógico con ganancia y offset, o los parámetros de escalado del propio
-bloque. Ejemplo: un sensor de nivel 0–10 V que corresponde a 0–5 metros se escala con
-ganancia 0,005 (5 m ÷ 1000) y offset 0.
+entrada analógica en el rango 0–1000 (0–10 V). Para convertir a unidades de ingeniería se
+usa el amplificador analógico, o los parámetros de ganancia y offset del propio bloque:
+valor real = (valor interno × ganancia) + offset.
+
+Rangos admitidos (manual de sistema): **ganancia de −10,00 a +10,00, con dos decimales**;
+offset de −10 000 a +10 000. La salida del amplificador va de −32 767 a 32 767, pero una
+salida analógica física solo procesa 0–1000.
+
+La ganancia no admite más de dos decimales, así que **no siempre se puede escalar
+directamente a la unidad deseada**. Ejemplo: un sensor de nivel 0–10 V que corresponde a
+0–5 metros necesitaría ganancia 0,005, que el bloque no acepta. Se trabaja en una unidad
+más pequeña: ganancia 0,50 y offset 0 dan 0–500 **centímetros**. Si se quiere ver metros
+en un texto de aviso, el parámetro p (número de decimales, 0 a 3) con p = 2 muestra 500
+como 5.00; p solo cambia la visualización, no el valor.
+
+Ejemplos del manual: termopar −30…+70 °C en 0–10 V → ganancia 0,1 y offset −30.
+Presión 1000…5000 mbar en 0–10 V → ganancia 4 y offset 1000.
 
 ## 6. Funciones especiales varias
 
@@ -106,10 +119,20 @@ ganancia 0,005 (5 m ÷ 1000) y offset 0.
 
 ### Sobre la prioridad Set/Reset
 
-En el relé autoenclavador el **Reset tiene prioridad** cuando `Par` está configurado con
-la opción correspondiente. Para circuitos de motores esto importa: si el estudiante pulsa
-marcha y paro a la vez, el motor debe quedar parado. Es una pregunta de examen habitual y
-una decisión de seguridad, no un detalle.
+En el **relé autoenclavador** el **Reset tiene siempre prioridad**: si S = 1 y R = 1, la
+salida se desactiva. No es configurable. Su único parámetro es la **remanencia** (`/` sin
+remanencia, `R` remanente: tras un corte de alimentación recupera el estado anterior).
+
+Para circuitos de motores esto importa: si el estudiante pulsa marcha y paro a la vez, el
+motor debe quedar parado, y con el relé autoenclavador queda parado sin configurar nada.
+Es una pregunta de examen habitual y una decisión de seguridad, no un detalle.
+
+Sobre la remanencia en motores: con `R` activada, tras volver la energía el motor podría
+arrancar solo. En circuitos de motores se deja **sin remanencia** salvo que haya una razón
+justificada y se evalúe el riesgo.
+
+No confundir con el **relé de impulsos**: ese sí tiene un parámetro de selección,
+**RS** (la entrada R tiene prioridad) o **SR** (la entrada S tiene prioridad).
 
 ## 7. Correspondencia con la lógica cableada
 
@@ -140,5 +163,6 @@ Tabla útil para el estudiante que viene de esquemas de mando:
 ## Fuentes
 
 - Siemens, manual de sistema LOGO! y ayuda en pantalla de LOGO! Soft Comfort (edición en
-  español).
+  español). Escalado y relé autoenclavador verificados contra el *Manual de sistema LOGO!*,
+  edición 7/2022, A5E33039720-AK: apartados 4.3.6, 4.4.22, 4.4.23 y 4.4.24.
 - Siemens, catálogo de producto LOGO! 8.4.
