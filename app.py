@@ -94,9 +94,13 @@ Para cualquier consulta sobre el estudio puede escribir a {DOCENTE_CORREO}.
 - Se registrarán sus consultas al asistente, las respuestas recibidas, la fecha
   y el tiempo de uso, **identificados únicamente con el código que le asignó el
   docente**. En ningún momento se registra su nombre.
+- Para generar las respuestas, sus consultas se envían al servicio de
+  inteligencia artificial **Gemini, de Google**, que las procesa según sus
+  propias condiciones de uso. **No escriba su nombre ni otros datos personales
+  en el chat.**
 - Los datos se usan solo con fines de investigación y se reportan de forma
-  agregada. Nadie fuera del equipo de investigación accede a las conversaciones
-  individuales.
+  agregada. Dentro de la institución, solo el equipo de investigación accede a
+  las conversaciones individuales.
 - **Su participación es voluntaria y no afecta su calificación.** Puede dejar de
   usar el asistente en cualquier momento sin dar explicaciones y sin
   consecuencia académica alguna.
@@ -143,6 +147,19 @@ def cargar_conocimiento() -> tuple[str, list[str]]:
     return "".join(partes), nombres
 
 
+# Streamlit interpreta el texto entre signos $ como formula matematica (LaTeX).
+# El modelo suele escribir direcciones y bornes asi: $I1$, $Q1$, $L1$, $A1$.
+# Esta funcion solo cambia lo que se MUESTRA en pantalla: el registro de la
+# investigacion guarda la respuesta original del modelo, sin tocar.
+_PATRON_TOKEN_DOLAR = re.compile(r"\$([A-Za-z][A-Za-z0-9+\-_.]{0,15})\$")
+
+
+def limpiar_para_mostrar(texto: str) -> str:
+    """Quita los $ de identificadores cortos ($I1$ -> I1) y escapa los demas."""
+    texto = _PATRON_TOKEN_DOLAR.sub(r"\1", texto)
+    return texto.replace("$", r"\$")
+
+
 def construir_instruccion_sistema(modo: str) -> str:
     instrucciones = cargar_instrucciones()
     conocimiento, _ = cargar_conocimiento()
@@ -174,6 +191,21 @@ def construir_instruccion_sistema(modo: str) -> str:
 # haya funcionado: en un estudio, perder filas no tiene arreglo posterior.
 # ---------------------------------------------------------------------------
 
+def _rol_jwt(clave: str) -> str:
+    """Lee el campo 'role' de una clave antigua de Supabase (JWT), o '' si no lo es."""
+    import base64
+    import json
+
+    partes = clave.split(".")
+    if len(partes) != 3:
+        return ""
+    try:
+        carga = partes[1] + "=" * (-len(partes[1]) % 4)
+        return str(json.loads(base64.urlsafe_b64decode(carga)).get("role", ""))
+    except Exception:  # noqa: BLE001
+        return ""
+
+
 @st.cache_resource(show_spinner=False)
 def config_supabase():
     """Devuelve {'url','key'} si Supabase esta configurado, o None."""
@@ -183,6 +215,12 @@ def config_supabase():
     except Exception:  # noqa: BLE001
         return None
     if not url or not key:
+        return None
+    if key.startswith("sb_secret_") or _rol_jwt(key) == "service_role":
+        # Una clave secreta salta las reglas de seguridad: la app no debe usarla.
+        st.session_state["error_supabase"] = (
+            "SUPABASE_KEY es una clave secreta. Use la clave publishable o anon."
+        )
         return None
     return {"url": url, "key": key}
 
@@ -195,14 +233,20 @@ def guardar_supabase(tabla: str, fila: dict) -> bool:
     try:
         import requests
 
+        cabeceras = {
+            "apikey": cfg["key"],
+            "Content-Type": "application/json",
+            "Prefer": "return=minimal",
+        }
+        # La clave 'anon' antigua es un JWT (empieza por 'eyJ') y va tambien en
+        # Authorization. La clave 'publishable' nueva (sb_publishable_...) no es
+        # un JWT: enviada en Authorization, Supabase la rechaza.
+        if cfg["key"].startswith("eyJ"):
+            cabeceras["Authorization"] = f"Bearer {cfg['key']}"
+
         respuesta = requests.post(
             f"{cfg['url']}/rest/v1/{tabla}",
-            headers={
-                "apikey": cfg["key"],
-                "Authorization": f"Bearer {cfg['key']}",
-                "Content-Type": "application/json",
-                "Prefer": "return=minimal",
-            },
+            headers=cabeceras,
             json=fila,
             timeout=15,
         )
@@ -671,12 +715,12 @@ if not st.session_state.mensajes:
 
 for m in st.session_state.mensajes:
     with st.chat_message(m["role"]):
-        st.markdown(m["content"])
+        st.markdown(limpiar_para_mostrar(m["content"]))
 
 if pregunta := st.chat_input("Escriba su duda sobre LOGO!..."):
     st.session_state.mensajes.append({"role": "user", "content": pregunta})
     with st.chat_message("user"):
-        st.markdown(pregunta)
+        st.markdown(limpiar_para_mostrar(pregunta))
 
     with st.chat_message("assistant"):
         with st.spinner("El tutor está pensando..."):
@@ -703,7 +747,7 @@ if pregunta := st.chat_input("Escriba su duda sobre LOGO!..."):
                 st.caption(f"Detalle técnico para el docente: {str(e)[:180]}")
 
         if texto:
-            st.markdown(texto)
+            st.markdown(limpiar_para_mostrar(texto))
             st.session_state.mensajes.append({"role": "assistant", "content": texto})
 
             momento = ahora()

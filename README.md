@@ -4,8 +4,8 @@ Asistente conversacional para el aprendizaje de automatización industrial con e
 lógico LOGO! de Siemens, desarrollado para la carrera de Electromecánica del Instituto
 Superior Tecnológico «Carlos Cisneros» (Riobamba, Ecuador).
 
-Forma parte de un estudio cuasiexperimental que mide su efecto sobre el aprendizaje frente
-a la metodología tradicional de laboratorio.
+Forma parte de un estudio de desarrollo y validación por juicio de expertos, con un piloto
+de un solo grupo (pretest y postest) en el período octubre 2026 – febrero 2027.
 
 **Autor:** Lic. Guido Hernán Cantuña Adriano, Mg.
 guido.cantuna@istcarloscisneros.edu.ec
@@ -31,7 +31,7 @@ GEMINI_API_KEY = "..."
 MODELO = "gemini-3.6-flash"
 MODO_TUTOR = "guiado"
 SUPABASE_URL = "https://....supabase.co"
-SUPABASE_KEY = "..."   # clave anon, nunca service_role
+SUPABASE_KEY = "..."   # clave publishable o anon, nunca la secreta
 ```
 
 Las tablas de la base de datos se crean ejecutando `supabase_tablas.sql` en el SQL Editor

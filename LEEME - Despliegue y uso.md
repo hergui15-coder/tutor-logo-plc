@@ -83,7 +83,35 @@ despliegue en la nube.
 4. Despliegue y comparta el enlace con los estudiantes del grupo experimental.
 
 En la nube el sistema de archivos es efímero: **el CSV local se borra en cada reinicio**.
-Para desplegar en la nube hay que configurar la hoja de cálculo.
+Para desplegar en la nube hay que configurar Supabase (o la hoja de cálculo): sin eso, los
+datos del estudio se pierden.
+
+Secretos que se pegan en *Settings › Secrets* (formato TOML, uno por línea):
+
+```toml
+GEMINI_API_KEY = "la clave nueva de Google AI Studio"
+MODELO = "gemini-3.6-flash"
+MODO_TUTOR = "guiado"
+SUPABASE_URL = "https://xxxxxxxx.supabase.co"
+SUPABASE_KEY = "la clave publishable o anon"
+```
+
+Los códigos válidos son `4A-01` a `4A-17` (estudiantes) y `PRUEBA-01` a `PRUEBA-99`
+(docente y expertos, se excluyen del análisis). Si hace falta otra lista, se añade
+`CODIGOS_VALIDOS = "4A-01,4A-02,..."`.
+
+### Dos avisos del plan gratuito
+
+- **Supabase pausa los proyectos gratuitos después de unos días sin actividad.** Si se
+  pausa, las consultas de los estudiantes no se guardan (en la nube el respaldo CSV se
+  pierde). Entre en el panel de Supabase al menos una vez por semana y revise que el
+  proyecto esté activo, sobre todo en vacaciones de fin de año. La app avisa al estudiante
+  si el registro falla.
+- **Gemini API en el nivel gratuito:** Google puede usar el contenido de las consultas para
+  mejorar sus productos, y los límites de consultas por minuto y por día son bajos para un
+  curso entero. Con la facturación activada en Google AI Studio (nivel de pago), el
+  contenido no se usa para entrenar y los límites suben; el costo con 17 estudiantes es
+  bajo. Decida antes del 23 de noviembre y declárelo en el artículo.
 
 ---
 
@@ -97,13 +125,15 @@ real y se exportan a CSV para Excel, SPSS o R.
    Guarde la contraseña de la base que le pide al crearlo.
 2. Abra **SQL Editor › New query**, pegue todo el contenido de `supabase_tablas.sql`
    y pulse **Run**. Eso crea las dos tablas y las reglas de seguridad.
-3. Vaya a **Project Settings › Data API** y copie:
-   - el **Project URL** → `SUPABASE_URL`
-   - la clave pública **anon / publishable** → `SUPABASE_KEY`
+3. Copie dos datos:
+   - el **Project URL** (en *Project Settings › Data API*) → `SUPABASE_URL`
+   - la clave pública (en *Project Settings › API Keys*): la **publishable**
+     (`sb_publishable_…`) o, en proyectos antiguos, la **anon** (`eyJ…`) → `SUPABASE_KEY`.
+     La app acepta las dos y rechaza las claves secretas.
 4. Péguelas en `.streamlit/secrets.toml` (o en *Settings › Secrets* de Streamlit Cloud),
    sin el `#` del inicio de la línea.
 
-**Use la clave `anon`, nunca la `service_role`.** Con las políticas del archivo SQL, la
+**Use la clave publishable o `anon`, nunca la secreta (`sb_secret_…` o `service_role`).** Con las políticas del archivo SQL, la
 aplicación solo puede *insertar* filas: no puede leer, modificar ni borrar. Así, aunque la
 clave se filtrara, nadie podría descargar las conversaciones de los estudiantes. Usted las
 consulta desde el panel de Supabase, que entra con su propia cuenta.
@@ -157,9 +187,12 @@ compartido.
 - [ ] Prueba del andamiaje: pedir «quiero programar un arranque estrella-triángulo» y
       verificar que **no** entrega el programa, sino que pregunta. Si lo entrega, revise
       que `instrucciones_tutor.md` se esté cargando y que `MODO_TUTOR` sea `guiado`
-- [ ] Códigos de estudiante asignados y entregados (por ejemplo `EM-2026-001`), con la
-      lista código↔nombre guardada aparte y solo en poder del docente
+- [ ] Códigos de estudiante asignados y entregados (`4A-01` a `4A-17`), con la lista
+      código↔nombre guardada aparte y solo en poder del docente
 - [ ] Modelo y fechas anotados para el apartado de materiales y métodos:
-      modelo `gemini-3.6-flash`, período del __ / __ / 2026 al __ / __ / 2026
-- [ ] Banco de 40 consultas aplicado y calificado por los tres expertos, con corrección
-      técnica ≥ 90 %
+      modelo `gemini-3.6-flash`, período del 23 / 11 / 2026 al 14 / 01 / 2027
+- [ ] Prueba desde un celular con datos móviles (no con la red del instituto)
+- [ ] Respuestas del banco de 40 consultas generadas y guardadas **antes** del 23 de
+      noviembre; la calificación de los expertos puede llegar después (ver el plan `09`)
+- [ ] Filas de prueba borradas de Supabase antes del primer uso real, o identificadas por el
+      código `PRUEBA-xx`
